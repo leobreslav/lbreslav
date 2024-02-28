@@ -1,0 +1,52 @@
+version: '3.8'
+services:
+  db:  # Новый сервис для PostgreSQL
+    image: postgres:latest  # Используем последнюю версию образа PostgreSQL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Постоянный том для данных
+    environment:
+      POSTGRES_DB: ${DB_NAME}  # Имя базы данных
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+
+  web:
+    build:
+      context: ./backend
+    command: sh -c "python manage.py migrate --noinput && gunicorn lbreslav.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/static
+    expose:
+      - 8000
+    ports:
+      - "8000:8000"
+    environment:  # Добавляем переменные окружения для подключения к базе данных
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_HOST=db  # ВАЖНО: имя хоста должно соответствовать имени сервиса db
+      - DB_PORT=${DB_PORT}
+    depends_on:
+      - db  # Указываем, что сервис web зависит от сервиса db
+
+  nginx:
+    build: ./nginx
+    volumes:
+      - static_volume:/app/static
+      - static_volume_frontend:/app/build/static
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - frontend 
+
+  frontend:
+    build: ./frontend  # Указывает на директорию с Dockerfile React проекта
+    ports:
+      - "3000:3000"  # Проброс порта, чтобы приложение было доступно снаружи
+    volumes:
+      - static_volume_frontend:/app/build/static  # Убедитесь, что это правильный путь
+volumes:
+  postgres_data:  # Объявляем том для хранения данных PostgreSQL
+  static_volume:
+  static_volume_frontend:
