@@ -148,3 +148,5 @@ dmypy.json
 .idea
 .venv
 db.sqlite3
+
+.env
